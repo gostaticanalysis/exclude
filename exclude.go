@@ -23,8 +23,8 @@ func By(a *analysis.Analyzer, fs ...Func) *analysis.Analyzer {
 
 // All excludes the analyzers with the functions.
 func All(as []*analysis.Analyzer, fs ...Func) []*analysis.Analyzer {
-	excluded := make([]*analysis.Analyzer, len(as)
-	for i := range analyzers {
+	excluded := make([]*analysis.Analyzer, len(as))
+	for i := range as {
 		excluded[i] = By(as[i], fs...)
 	}
 	return excluded
