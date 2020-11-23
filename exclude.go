@@ -21,6 +21,15 @@ func By(a *analysis.Analyzer, fs ...Func) *analysis.Analyzer {
 	return analyzer
 }
 
+// All excludes the analyzers with the functions.
+func All(as []*analysis.Analyzer, fs ...Func) []*analysis.Analyzer {
+	excluded := make([]*analysis.Analyzer, len(as)
+	for i := range analyzers {
+		excluded[i] = By(as[i], fs...)
+	}
+	return excluded
+}
+
 // GeneratedFile excludes auto generated files.
 // Because it excludes only reporting diagnostics, analyzing would be excuted.
 func GeneratedFile(a *analysis.Analyzer) *analysis.Analyzer {
