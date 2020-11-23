@@ -57,9 +57,9 @@ func TestFile(a *analysis.Analyzer) *analysis.Analyzer {
 	return a
 }
 
-// FilePattern excludes files which matches the pattern given by exclude flag.
+// FileWithPattern excludes files which matches the pattern given by exclude flag.
 // Because it excludes only reporting diagnostics, analyzing would be excuted.
-func FilePattern(a *analysis.Analyzer) *analysis.Analyzer {
+func FileWithPattern(a *analysis.Analyzer) *analysis.Analyzer {
 	if a.Flags.Lookup("exclude") != nil {
 		panic("flag -exclude has already been set")
 	}
