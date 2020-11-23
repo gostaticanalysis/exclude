@@ -36,7 +36,7 @@ func GeneratedFile(a *analysis.Analyzer) *analysis.Analyzer {
 	orgRun := a.Run
 	a.Run = func(pass *analysis.Pass) (interface{}, error) {
 		pass.Report = ReportWithFilter(pass, func(d analysis.Diagnostic) bool {
-			return analysisutil.IsGeneratedFile(analysisutil.File(pass, d.Pos))
+			return !analysisutil.IsGeneratedFile(analysisutil.File(pass, d.Pos))
 		})
 		return orgRun(pass)
 	}

@@ -10,9 +10,10 @@ func ReportWithFilter(pass *analysis.Pass, filters ...DiagnosticFilter) func(ana
 
 	for _, filter := range filters {
 		filter := filter
+		orgReport := report
 		report = func(d analysis.Diagnostic) {
 			if filter(d) {
-				report(d)
+				orgReport(d)
 			}
 		}
 	}
