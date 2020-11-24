@@ -1,13 +1,18 @@
 package exclude
 
 import (
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strings"
 
 	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
 )
+
+// AllFuncs is all functions.
+var AllFuncs = []Func{GeneratedFile, TestFile, FileWithPattern}
 
 // Func excludes reporting diagnostics or analyzing.
 type Func func(a *analysis.Analyzer) *analysis.Analyzer
@@ -30,9 +35,66 @@ func All(as []*analysis.Analyzer, fs ...Func) []*analysis.Analyzer {
 	return excluded
 }
 
+// Flags sets flags which name has "all-exclude" prefix to each analyzers.
+// Flags returns remain arguments including flags which did not set to the analyzers.
+func Flags(args []string, as ...*analysis.Analyzer) (remains []string, _ error) {
+	flags := flag.NewFlagSet("", flag.ContinueOnError)
+	flags.SetOutput(ioutil.Discard)
+	a := By(new(analysis.Analyzer), AllFuncs...)
+	a.Flags.VisitAll(func(f *flag.Flag) {
+		flags.Var(f.Value, "all-"+f.Name, f.Usage)
+	})
+
+	if err := flags.Parse(args); err != nil {
+		return nil, err
+	}
+
+	var rerr error
+	flags.Visit(func(f *flag.Flag) {
+		if !strings.HasPrefix(f.Name, "all-exclude") {
+			remains = append(remains, f.Name+"="+f.Value.String())
+			return
+		}
+
+		for _, a := range as {
+			// remove "all-" prefix and set each analyzer
+			name := f.Name[4:]
+			if a.Flags.Lookup(name) != nil {
+				err := a.Flags.Set(f.Name[4:], f.Value.String())
+				if err != nil {
+					rerr = err
+				}
+			}
+		}
+	})
+
+	if rerr != nil {
+		return nil, rerr
+	}
+
+	remains = append(remains, flags.Args()...)
+
+	if remains != nil {
+		return remains, nil
+	}
+
+	return []string{}, nil
+}
+
 // GeneratedFile excludes auto generated files.
 // Because it excludes only reporting diagnostics, analyzing would be excuted.
 func GeneratedFile(a *analysis.Analyzer) *analysis.Analyzer {
+	const flag = "exclude-generated"
+	if a.Flags.Lookup(flag) != nil {
+		panic("flag -" + flag + " has already been set")
+	}
+	var onoff bool
+	a.Flags.BoolVar(&onoff, flag, true, "whether excludes generated files or not")
+	if !onoff {
+		// skip
+		return a
+	}
+
 	orgRun := a.Run
 	a.Run = func(pass *analysis.Pass) (interface{}, error) {
 		pass.Report = ReportWithFilter(pass, func(d analysis.Diagnostic) bool {
@@ -46,6 +108,17 @@ func GeneratedFile(a *analysis.Analyzer) *analysis.Analyzer {
 // TestFile excludes test files.
 // Because it excludes only reporting diagnostics, analyzing would be excuted.
 func TestFile(a *analysis.Analyzer) *analysis.Analyzer {
+	const flag = "exclude-testfile"
+	if a.Flags.Lookup(flag) != nil {
+		panic("flag -" + flag + " has already been set")
+	}
+	var onoff bool
+	a.Flags.BoolVar(&onoff, flag, true, "whether excludes test files or not")
+	if !onoff {
+		// skip
+		return a
+	}
+
 	orgRun := a.Run
 	a.Run = func(pass *analysis.Pass) (interface{}, error) {
 		pass.Report = ReportWithFilter(pass, func(d analysis.Diagnostic) bool {
@@ -60,11 +133,12 @@ func TestFile(a *analysis.Analyzer) *analysis.Analyzer {
 // FileWithPattern excludes files which matches the pattern given by exclude flag.
 // Because it excludes only reporting diagnostics, analyzing would be excuted.
 func FileWithPattern(a *analysis.Analyzer) *analysis.Analyzer {
-	if a.Flags.Lookup("exclude") != nil {
-		panic("flag -exclude has already been set")
+	const flag = "exclude-file"
+	if a.Flags.Lookup(flag) != nil {
+		panic("flag -" + flag + " has already been set")
 	}
 	var pattern string
-	a.Flags.StringVar(&pattern, "exclude", "", "a pattern of excluding file path")
+	a.Flags.StringVar(&pattern, flag, "", "a pattern of excluding file path")
 
 	orgRun := a.Run
 	a.Run = func(pass *analysis.Pass) (interface{}, error) {
