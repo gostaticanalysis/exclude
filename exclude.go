@@ -50,7 +50,7 @@ func TestFile(a *analysis.Analyzer) *analysis.Analyzer {
 	a.Run = func(pass *analysis.Pass) (interface{}, error) {
 		pass.Report = ReportWithFilter(pass, func(d analysis.Diagnostic) bool {
 			file := pass.Fset.File(d.Pos)
-			return strings.HasSuffix(file.Name(), "_test.go")
+			return file != nil && !strings.HasSuffix(file.Name(), "_test.go")
 		})
 		return orgRun(pass)
 	}
@@ -79,7 +79,7 @@ func FileWithPattern(a *analysis.Analyzer) *analysis.Analyzer {
 
 		pass.Report = ReportWithFilter(pass, func(d analysis.Diagnostic) bool {
 			file := pass.Fset.File(d.Pos)
-			return !excludeRegexp.MatchString(file.Name())
+			return file != nil && !excludeRegexp.MatchString(file.Name())
 		})
 
 		return orgRun(pass)
