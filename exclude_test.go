@@ -1,16 +1,19 @@
 package exclude_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"html/template"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/gostaticanalysis/exclude"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
+
+	"github.com/gostaticanalysis/exclude"
 )
 
 func TestGeneratedFile(t *testing.T) {
@@ -27,7 +30,6 @@ func TestGeneratedFile(t *testing.T) {
 	}
 
 	for name, tt := range cases {
-		name, tt := name, tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			path := filepath.Join(name, name+".go")
@@ -35,7 +37,7 @@ func TestGeneratedFile(t *testing.T) {
 				path: fmt.Sprintf("%s\npackage %s", tt.src, name),
 			})
 			var rec reportRecoder
-			analysistest.Run(t, dir, rec.new(exclude.GeneratedFile), name)
+			analysistest.Run(t, dir, rec.new(exclude.GeneratedFile, -1), name)
 			if got := rec.isReported(); got != tt.want {
 				t.Errorf("want %v but got %v", tt.want, got)
 			}
@@ -62,7 +64,7 @@ func TestTestFile(t *testing.T) {
 				path: fmt.Sprintf("package %s", name),
 			})
 			var rec reportRecoder
-			analysistest.Run(t, dir, rec.new(exclude.TestFile), name)
+			analysistest.Run(t, dir, rec.new(exclude.TestFile, 1), name)
 			if got := rec.isReported(); got != tt.want {
 				t.Errorf("want %v but got %v", tt.want, got)
 			}
@@ -90,7 +92,7 @@ func TestFileWithPattern(t *testing.T) {
 				path: fmt.Sprintf("package %s", name),
 			})
 			var rec reportRecoder
-			a := rec.new(exclude.FileWithPattern)
+			a := rec.new(exclude.FileWithPattern, 1)
 			a.Flags.Set("exclude-file", tt.pattern)
 			analysistest.Run(t, dir, a, name)
 			if got := rec.isReported(); got != tt.want {
@@ -148,6 +150,40 @@ func TestFlags(t *testing.T) {
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Error("flags:", diff)
 				}
+			}
+		})
+	}
+}
+
+func TestLintIgnoreComment(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		comment string
+		want    bool // is reported?
+	}{
+		"nocomment": {"", true},
+		"ignore":    {"//lint:ignore {{.}} reason", false},
+		"missname":  {"//lint:ignore missname reason", true},
+		"noreason":  {"//lint:ignore {{.}}", true},
+	}
+
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(name, name+".go")
+			var rec reportRecoder
+			a := rec.new(exclude.LintIgnoreComment, 3)
+			var comment bytes.Buffer
+			if err := template.Must(template.New(name).Parse(tt.comment)).Execute(&comment, a.Name); err != nil {
+				t.Fatal("unexpected error")
+			}
+			dir := writeFiles(t, map[string]string{
+				path: fmt.Sprintf("package %s\n%s\nvar _ struct{}", name, &comment),
+			})
+			analysistest.Run(t, dir, a, name)
+			if got := rec.isReported(); got != tt.want {
+				t.Errorf("want %v but got %v", tt.want, got)
 			}
 		})
 	}
