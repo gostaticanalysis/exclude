@@ -55,7 +55,6 @@ func TestTestFile(t *testing.T) {
 	}
 
 	for name, tt := range cases {
-		name, tt := name, tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			path := filepath.Join(name, tt.file)
@@ -84,7 +83,6 @@ func TestFileWithPattern(t *testing.T) {
 	}
 
 	for name, tt := range cases {
-		name, tt := name, tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			path := filepath.Join(name, tt.file)
@@ -114,7 +112,6 @@ func TestFlags(t *testing.T) {
 	}
 
 	for name, tt := range cases {
-		name, tt := name, tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			a := exclude.By(new(analysis.Analyzer), exclude.AllFuncs...)
