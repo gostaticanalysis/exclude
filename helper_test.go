@@ -1,6 +1,7 @@
 package exclude_test
 
 import (
+	"go/token"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -13,7 +14,7 @@ type reportRecoder struct {
 	reports []analysis.Diagnostic
 }
 
-func (r *reportRecoder) new(f exclude.Func) *analysis.Analyzer {
+func (r *reportRecoder) new(f exclude.Func, line int) *analysis.Analyzer {
 	a := exclude.By(&analysis.Analyzer{
 		Name: "TestAnalyzer",
 		Doc:  "document",
@@ -23,7 +24,15 @@ func (r *reportRecoder) new(f exclude.Func) *analysis.Analyzer {
 				return nil, nil
 			}
 
-			pass.Reportf(pass.Files[0].Pos(), "hello")
+			var pos token.Pos
+			if line >= 0 {
+				file := pass.Fset.File(pass.Files[0].Pos())
+				pos = file.LineStart(line)
+			} else {
+				pos = pass.Files[0].Pos()
+			}
+
+			pass.Reportf(pos, "hello")
 			return nil, nil
 		},
 	}, f)

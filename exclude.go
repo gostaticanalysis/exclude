@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/gostaticanalysis/analysisutil"
+	"github.com/gostaticanalysis/comment"
+	"github.com/gostaticanalysis/comment/passes/commentmap"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -159,5 +162,23 @@ func FileWithPattern(a *analysis.Analyzer) *analysis.Analyzer {
 		return orgRun(pass)
 	}
 
+	return a
+}
+
+// LintIgnoreComment excludes diagnostics with staticchek style //lint:ignore comment.
+func LintIgnoreComment(a *analysis.Analyzer) *analysis.Analyzer {
+	orgRun := a.Run
+
+	if !slices.Contains(a.Requires, commentmap.Analyzer) {
+		a.Requires = append(a.Requires, commentmap.Analyzer)
+	}
+
+	a.Run = func(pass *analysis.Pass) (interface{}, error) {
+		pass.Report = ReportWithFilter(pass, func(d analysis.Diagnostic) bool {
+			cmaps, _ := pass.ResultOf[commentmap.Analyzer].(comment.Maps)
+			return !cmaps.IgnorePosLine(pass.Fset, d.Pos, a.Name)
+		})
+		return orgRun(pass)
+	}
 	return a
 }
