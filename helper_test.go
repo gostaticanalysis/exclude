@@ -3,9 +3,10 @@ package exclude_test
 import (
 	"testing"
 
-	"github.com/gostaticanalysis/exclude"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
+
+	"github.com/gostaticanalysis/exclude"
 )
 
 type reportRecoder struct {
@@ -15,7 +16,7 @@ type reportRecoder struct {
 func (r *reportRecoder) new(f exclude.Func) *analysis.Analyzer {
 	a := exclude.By(&analysis.Analyzer{
 		Name: "TestAnalyzer",
-		Doc: "document",
+		Doc:  "document",
 		Run: func(pass *analysis.Pass) (interface{}, error) {
 			if pass.Pkg.Name() == "main" ||
 				len(pass.Files) == 0 {
